@@ -1,1 +1,2 @@
-# Project dependencies will be added here
+# Core dependencies for I Love NY Events Scraper
+requests>=2.31.0

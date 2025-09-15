@@ -86,3 +86,42 @@ can you write a web scraper, scraper.py, for iloveny.com/events using beautiful 
 Include rules for respectful scraping like exponential backoff and a retry limit. Export the results in a single format (CSV/JSON) or output to a folder.
 ```
 **AI Response**: Generated skeleton for web scraper and output key features included.
+
+### Architecture Documentation and Scraper Implementation (Temirlan)
+**Date**: Current session
+**Prompt**:
+```
+We will create a iloveny.com/events scraper, first i want you to document the current architecture in the @ARCHITECTURE.md 
+
+We tried scraping using bs4, but the website is dynamic, so we decided to reverse engineer the API
+
+remember this
+Your scraper should demonstrate these concepts:
+# 1. Data Quality Assurance
+- Validation rules for scraped data
+# 2. Respectful Scraping
+- Implement exponential backoff 
+- Retry limit
+# 3. Business Logic
+- Data transformation pipeline, even if very basic (we'll cover data transformation in more detail later, for now, just ask the LLM to help you with transformation)
+- Value-added calculations or insights
+- Export in a single format (CSV, JSON) or output to a folder (e.g., /images)
+
+The important requests are
+
+curl 'https://www.iloveny.com/plugins/core/get_simple_token/'
+
+which gets the auth token
+
+and
+
+curl 'https://www.iloveny.com/includes/rest_v2/plugins_events_events_by_date/find/?json=%7B%22filter%22%3A%7B%22solrOptions%22%3A%7B%7D%2C%22primary_site%22%3A%22primary%22%2C%22categories.catId%22%3A%7B%22%24in%22%3A%5B%223%22%2C%225%22%2C%226%22%2C%22106%22%2C%2274%22%2C%2297%22%2C%2231%22%2C%22100%22%2C%2210%22%2C%22101%22%2C%22102%22%2C%2287%22%2C%2229%22%2C%2211%22%2C%2212%22%2C%2214%22%2C%2215%22%2C%22113%22%2C%2218%22%2C%2298%22%2C%2299%22%2C%22111%22%2C%2226%22%2C%2230%22%5D%7D%2C%22date_range%22%3A%7B%22start%22%3A%7B%22%24date%22%3A%222025-09-18T04%3A00%3A00.000Z%22%7D%2C%22end%22%3A%7B%22%24date%22%3A%222025-09-26T04%3A00%3A00.000Z%22%7D%7D%7D%2C%22options%22%3A%7B%22skip%22%3A0%2C%22limit%22%3A12%2C%22hooks%22%3A%5B%22afterFind_listing%22%2C%22afterFind_host%22%5D%2C%22sort%22%3A%7B%22featured%22%3A-1%2C%22date%22%3A1%2C%22rank%22%3A1%2C%22title%22%3A1%7D%2C%22fields%22%3A%7B%22accountId%22%3A1%2C%22categories%22%3A1%2C%22detailURL%22%3A1%2C%22featured%22%3A1%2C%22host_id%22%3A1%2C%22host.recid%22%3A1%2C%22host.title%22%3A1%2C%22host.detailURL%22%3A1%2C%22latitude%22%3A1%2C%22listing%22%3A1%2C%22listing_id%22%3A1%2C%22listing.recid%22%3A1%2C%22listing.title%22%3A1%2C%22listing.detailURL%22%3A1%2C%22listing.region%22%3A1%2C%22address1%22%3A1%2C%22location%22%3A1%2C%22longitude%22%3A1%2C%22media_raw%22%3A1%2C%22nextDate%22%3A1%2C%22primary_site%22%3A1%2C%22rank%22%3A1%2C%22recId%22%3A1%2C%22recid%22%3A1%2C%22recurType%22%3A1%2C%22recurrence%22%3A1%2C%22startDate%22%3A1%2C%22endDate%22%3A1%2C%22startTime%22%3A1%2C%22endTime%22%3A1%2C%22title%22%3A1%2C%22description%22%3A1%2C%22typeName%22%3A1%2C%22loc%22%3A1%2C%22url%22%3A1%2C%22date%22%3A1%2C%22city%22%3A1%2C%22udfs_object%22%3A1%2C%22ticketmaster%22%3A1%2C%22linkUrl%22%3A1%2C%22hostname%22%3A1%7D%2C%22count%22%3Atrue%7D%7D&token=4bd5143fc1bf1403064ebc415e88546a'
+
+it's a sample requests that the main page sends to get the events data
+
+for now, the @validators.py and @transformers.py should not be implemented, the other dev will do them, you should implement the @scraper.py 
+
+The requirements above were for entire application, so keep it in mind. you can create placeholder methods for validation and transformation if need be.
+```
+
+**AI Response**: Documented comprehensive architecture in ARCHITECTURE.md explaining the API reverse engineering approach, implemented complete scraper.py with authentication, exponential backoff, retry logic, and data export functionality, added placeholder methods to validators.py and transformers.py for future implementation by Veyd, and updated requirements.txt with necessary dependencies.
