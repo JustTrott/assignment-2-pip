@@ -39,8 +39,8 @@ Well, except for AI usage. And can you also write in the AI usage that I'm using
 ```
 **AI Response**: Set up complete project structure with all required directories and files, created AI_USAGE.md with initial documentation including team information and Super Whisper usage. 
 
-### Main Scraper Logic
-**Date**: Current session
+### Main Scraper Logic (Veyd)
+**Date**: 9/14
 **Prompt**:
 ```
 can you write a web scraper, scraper.py, for iloveny.com/events using beautiful soup and the strategy in the pre-implementation doc below:
@@ -88,7 +88,7 @@ Include rules for respectful scraping like exponential backoff and a retry limit
 **AI Response**: Generated skeleton for web scraper and output key features included.
 
 ### Architecture Documentation and Scraper Implementation (Temirlan)
-**Date**: Current session
+**Date**: 9/14
 **Prompt**:
 ```
 We will create a iloveny.com/events scraper, first i want you to document the current architecture in the @ARCHITECTURE.md 
@@ -125,3 +125,33 @@ The requirements above were for entire application, so keep it in mind. you can 
 ```
 
 **AI Response**: Documented comprehensive architecture in ARCHITECTURE.md explaining the API reverse engineering approach, implemented complete scraper.py with authentication, exponential backoff, retry logic, and data export functionality, added placeholder methods to validators.py and transformers.py for future implementation by Veyd, and updated requirements.txt with necessary dependencies.
+
+### Validation and Transformer Implementation (Veyd)
+**Date**: Current session
+**Prompt**:
+```
+We reverse engineered the API for Iloveny but now we want to validate the data with the following functions only:
+validate_event_date - validate for date in future (argument: event dictionary, return: boolean)
+validate_location - validate for located in NYC (argument: event dictionary, return: boolean)
+detect_duplicates - detect and flag duplicate events (argument: list of event dictionaries, return: list of duplicate events)
+validate_data_completeness - check for completeness in title, date, location, and description (argument: event dictionary, return: string and boolean dictionary for the required fields)
+validate_links - validate for accessible URLs (argument: event dictionary, return: boolean)
+normalize_text - normalize text by cleaning HTML artifacts and whitespace (argument: raw text, return: normalized text)
+validate_events - main validation function for list of events (argument: list of event dictionaries, return: validation results dictionary containing (total events, valid events, invalid events, duplicates, validation errors)
+```
+**AI Response**: Implemented validation functions, including an extra function called ```calculate_text_similarity``` which was deleted.
+
+**Prompt**:
+```
+we are also looking for a basic data transformation pipeline
+the functions that exist in the class skeleton are:
+normalize_event_data
+enrich_event_data
+calculate_business_metrics
+categorize_event
+format_for_export
+apply_business_rules
+transform_events
+export_events
+```
+**AI Response**: Implemented data transformation functions extensively. Need to review decisions later and connect all of the work together.
