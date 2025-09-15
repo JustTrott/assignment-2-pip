@@ -7,6 +7,7 @@
 ## AI Collaboration Tools
 - **Super Whisper**: Used by Temirlan for voice-to-text transcription
 - **Cursor AI**: Used by Temirlan for code assistance and project setup
+- **Claude AI**: Used by Veyd for code assistance
 
 ## Prompt History
 
