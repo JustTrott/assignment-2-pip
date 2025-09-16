@@ -9,15 +9,24 @@ import requests
 import json
 import time
 import logging
+import argparse
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from urllib.parse import urlencode
+from pathlib import Path
 import csv
 import os
 
+# Add current directory to path for imports
+sys.path.append(str(Path(__file__).parent))
+
+from validators import validate_events
+from transformers import EventTransformer
+
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.FileHandler("scraper.log"), logging.StreamHandler()],
 )
@@ -125,7 +134,7 @@ class ILoveNYScraper:
                     response = self.session.post(url, params=params, timeout=30)
 
                 response.raise_for_status()
-                logger.info(f"Successfully made request to {url}")
+                logger.debug(f"Successfully made request to {url}")
                 return response
 
             except requests.exceptions.RequestException as e:
@@ -366,7 +375,7 @@ class ILoveNYScraper:
 
         if output_format.lower() == "json":
             filename = f"data/raw/events_{timestamp}.json"
-            os.makedirs("data", exist_ok=True)
+            os.makedirs("data/raw", exist_ok=True)
 
             with open(filename, "w", encoding="utf-8") as f:
                 json.dump(events, f, indent=2, ensure_ascii=False)
@@ -375,7 +384,7 @@ class ILoveNYScraper:
 
         elif output_format.lower() == "csv":
             filename = f"data/raw/events_{timestamp}.csv"
-            os.makedirs("data", exist_ok=True)
+            os.makedirs("data/raw", exist_ok=True)
 
             if events:
                 fieldnames = events[0].keys()
@@ -386,31 +395,182 @@ class ILoveNYScraper:
 
                 logger.info(f"Events exported to {filename}")
 
-def main():
-    """
-    Main function to run the scraper.
-    """
-    scraper = ILoveNYScraper(retry_limit=3, delay=2.0)
+    def get_date_range(self, days_ahead: int = 7) -> tuple:
+        """Get start and end dates for the specified number of days ahead"""
+        today = datetime.now().date()
+        start_date = today
+        end_date = today + timedelta(days=days_ahead)
+        return start_date, end_date
 
-    # Scrape events for the next 30 days
-    events = scraper.scrape_events(days_ahead=1, output_format="json")
+    def validate_events(self, events: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Validate scraped events"""
+        logger.info(f"Validating {len(events)} events")
 
-    if events:
-        print(f"Successfully scraped {len(events)} events")
-
-        # Display sample event
-        if events and len(events) > 0:
-            sample_event = events[0]
-            print("\nSample event:")
-            print(f"Title: {sample_event.get('title', 'N/A')}")
-            print(f"Date: {sample_event.get('startDate', 'N/A')}")
-            print(f"Location: {sample_event.get('address1', 'N/A')}")
-            print(f"City: {sample_event.get('city', 'N/A')}")
-            print(
-                f"Categories: {[cat.get('catName', '') for cat in sample_event.get('categories', [])]}"
+        try:
+            validation_results = validate_events(events)
+            logger.info(
+                f"Validation complete: {validation_results['summary']['valid_events_count']}/{len(events)} valid events"
             )
-    else:
-        print("No events were scraped")
+            return validation_results
+        except Exception as e:
+            logger.error(f"Error validating events: {e}")
+            return {
+                "valid_events": [],
+                "invalid_events": events,
+                "summary": {"valid_events_count": 0},
+            }
+
+    def transform_events(self, validated_events: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Transform validated events"""
+        logger.info(f"Transforming {len(validated_events)} validated events")
+
+        try:
+            # Extract just the event data from validation results
+            events_to_transform = [event["event"] for event in validated_events]
+
+            # Initialize transformer with data directory
+            transformer = EventTransformer("data")
+            transformation_result = transformer.transform_events(events_to_transform)
+            logger.info(
+                f"Transformation complete: {len(transformation_result['transformed_events'])} events processed"
+            )
+            return transformation_result
+        except Exception as e:
+            logger.error(f"Error transforming events: {e}")
+            return {"transformed_events": [], "skipped_events": validated_events}
+
+    def run_pipeline(self, formats: List[str] = None, days_ahead: int = 7) -> Dict[str, Any]:
+        """Run the complete pipeline"""
+        logger.info(f"Starting event pipeline for {days_ahead} days ahead...")
+
+        # Step 1: Get date range
+        start_date, end_date = self.get_date_range(days_ahead)
+        logger.info(f"Date range: {start_date} to {end_date}")
+
+        # Step 2: Scrape events
+        raw_events = self.scrape_events(days_ahead=days_ahead)
+        if not raw_events:
+            logger.warning("No events scraped, ending pipeline")
+            return {"error": "No events scraped"}
+
+        # Step 3: Validate events
+        validation_results = self.validate_events(raw_events)
+        valid_events = validation_results.get("valid_events", [])
+
+        if not valid_events:
+            logger.warning("No valid events found, ending pipeline")
+            return {
+                "error": "No valid events found",
+                "validation_results": validation_results,
+            }
+
+        # Step 4: Transform events
+        transformation_results = self.transform_events(valid_events)
+
+        # Step 5: Export only transformed events to data/ directory
+        if transformation_results.get("transformed_events"):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            export_paths = {}
+
+            # Export transformed events in JSON format
+            if "json" in (formats or ["json"]):
+                json_path = f"data/transformed_events_{timestamp}.json"
+                os.makedirs("data", exist_ok=True)
+                with open(json_path, "w", encoding="utf-8") as f:
+                    json.dump(
+                        transformation_results["transformed_events"], f, indent=2, ensure_ascii=False, default=str)
+                export_paths["json"] = json_path
+                logger.info(f"Transformed events exported to {json_path}")
+
+            # Export transformed events in CSV format
+            if "csv" in (formats or ["json"]):
+                csv_path = f"data/transformed_events_{timestamp}.csv"
+                os.makedirs("data", exist_ok=True)
+                if transformation_results["transformed_events"]:
+                    fieldnames = transformation_results["transformed_events"][0].keys()
+                    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.DictWriter(f, fieldnames=fieldnames)
+                        writer.writeheader()
+                        writer.writerows(transformation_results["transformed_events"])
+                    export_paths["csv"] = csv_path
+                    logger.info(f"Transformed events exported to {csv_path}")
+
+        # Summary
+        pipeline_summary = {
+            "total_scraped": len(raw_events),
+            "valid_events": len(valid_events),
+            "transformed_events": len(
+                transformation_results.get("transformed_events", [])
+            ),
+            "success_rate": (
+                len(valid_events) / len(raw_events) * 100 if raw_events else 0
+            ),
+            "export_paths": export_paths,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        logger.info(f"Pipeline complete: {pipeline_summary}")
+        return pipeline_summary
+
+def main():
+    """Main CLI entry point"""
+    parser = argparse.ArgumentParser(
+        description="Scrape, validate, and transform NYC events"
+    )
+
+    parser.add_argument(
+        "--formats",
+        nargs="+",
+        choices=["json", "csv"],
+        default=["json"],
+        help="Export formats (default: json)",
+    )
+
+    parser.add_argument(
+        "--days-ahead",
+        type=int,
+        default=7,
+        help="Number of days ahead to scrape events (default: 7)",
+    )
+
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose logging"
+    )
+
+    args = parser.parse_args()
+
+    # Set logging level
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    # Initialize and run pipeline
+    try:
+        scraper = ILoveNYScraper(retry_limit=3, delay=2.0)
+        results = scraper.run_pipeline(formats=args.formats, days_ahead=args.days_ahead)
+
+        if "error" in results:
+            print(f"❌ Pipeline failed: {results['error']}")
+            sys.exit(1)
+        else:
+            print("\n" + "=" * 60)
+            print("🎉 EVENT PIPELINE COMPLETE")
+            print("=" * 60)
+            print(f"📊 Total Events Scraped: {results['total_scraped']}")
+            print(f"✅ Valid Events: {results['valid_events']}")
+            print(f"🔄 Transformed Events: {results['transformed_events']}")
+            print(f"📈 Success Rate: {results['success_rate']:.1f}%")
+            print("📁 Output Files:")
+            for format_name, path in results["export_paths"].items():
+                print(f"   - {format_name}: {path}")
+            print("=" * 60)
+
+    except KeyboardInterrupt:
+        print("\n⚠️  Pipeline interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Pipeline failed with error: {e}")
+        logger.exception("Pipeline failed")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
