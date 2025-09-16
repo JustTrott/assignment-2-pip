@@ -9,6 +9,9 @@
 - **Cursor AI**: Used by Temirlan for code assistance and project setup
 - **Claude AI**: Used by Veyd for code assistance
 
+## AI Usage
+99.9% of code was written by AI. most of what we did was actually deleting hundreds of lines of redundant code. 
+
 ## Prompt History
 
 ### Initial Setup (Temirlan)
